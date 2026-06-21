@@ -1,6 +1,6 @@
-// PawCafeCalculate.java - Calculate Page
+// PawCafeCalculate.java - Calculate Page with Navigation Bar
 import javax.swing.*;
-import javax.swing.border.TitledBorder;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -13,13 +13,15 @@ public class PawCafeCalculate extends JFrame {
     private int totalItems = 0;
     private double discount = 0;
     private double finalTotal = 0;
+    private String paymentMethod;
     
-    public PawCafeCalculate(String cashierName, ArrayList<OrderItem> orderItems) {
+    public PawCafeCalculate(String cashierName, ArrayList<OrderItem> orderItems, String paymentMethod) {
         this.cashierName = cashierName;
         this.orderItems = orderItems;
+        this.paymentMethod = paymentMethod;
         setTitle("Paw Café - Calculation");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(600, 550);
+        setSize(750, 600);
         setLocationRelativeTo(null);
         setResizable(false);
         
@@ -49,171 +51,291 @@ public class PawCafeCalculate extends JFrame {
     }
     
     private void initializeUI() {
-        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(30, 40, 30, 40));
+        JPanel mainPanel = new JPanel(new BorderLayout(0, 0));
         mainPanel.setBackground(new Color(255, 248, 240));
         
-        // Header
-        JLabel titleLabel = new JLabel("🧮 Order Summary");
-        titleLabel.setFont(new Font("Serif", Font.BOLD, 28));
+        // ========================================
+        // NAVIGATION BAR
+        // ========================================
+        JPanel navBar = new JPanel(new BorderLayout());
+        navBar.setBackground(new Color(139, 69, 19));
+        navBar.setBorder(new EmptyBorder(15, 30, 15, 30));
+        navBar.setPreferredSize(new Dimension(getWidth(), 70));
+        
+        JLabel logoLabel = new JLabel("🐾 Paw Café");
+        logoLabel.setFont(new Font("Serif", Font.BOLD, 28));
+        logoLabel.setForeground(Color.WHITE);
+        navBar.add(logoLabel, BorderLayout.WEST);
+        
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 0));
+        rightPanel.setOpaque(false);
+        
+        JLabel userLabel = new JLabel("👤 " + cashierName);
+        userLabel.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        userLabel.setForeground(Color.WHITE);
+        
+        JButton homeBtn = new JButton("🏠 Home");
+        homeBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        homeBtn.setBackground(new Color(52, 152, 219));
+        homeBtn.setForeground(Color.WHITE);
+        homeBtn.setFocusPainted(false);
+        homeBtn.setBorder(BorderFactory.createEmptyBorder(10, 25, 10, 25));
+        homeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        homeBtn.addActionListener(e -> {
+            int confirm = JOptionPane.showConfirmDialog(this,
+                "Your current order will be lost. Continue?",
+                "Confirm",
+                JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                dispose();
+                new PawCafeHome(cashierName).setVisible(true);
+            }
+        });
+        
+        JButton logoutBtn = new JButton("🚪 Logout");
+        logoutBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        logoutBtn.setBackground(new Color(200, 50, 50));
+        logoutBtn.setForeground(Color.WHITE);
+        logoutBtn.setFocusPainted(false);
+        logoutBtn.setBorder(BorderFactory.createEmptyBorder(10, 25, 10, 25));
+        logoutBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        logoutBtn.addActionListener(e -> {
+            int confirm = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to logout?",
+                "Logout Confirmation",
+                JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                dispose();
+                new PawCafeLogin().setVisible(true);
+            }
+        });
+        
+        rightPanel.add(userLabel);
+        rightPanel.add(homeBtn);
+        rightPanel.add(logoutBtn);
+        navBar.add(rightPanel, BorderLayout.EAST);
+        
+        mainPanel.add(navBar, BorderLayout.NORTH);
+        
+        // ========================================
+        // CONTENT PANEL
+        // ========================================
+        JPanel contentPanel = new JPanel(new BorderLayout(20, 20));
+        contentPanel.setBorder(new EmptyBorder(30, 50, 30, 50));
+        contentPanel.setBackground(new Color(255, 248, 240));
+        
+        // ========================================
+        // HEADER
+        // ========================================
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setOpaque(false);
+        
+        JLabel titleLabel = new JLabel("Paw Café - Calculation");
+        titleLabel.setFont(new Font("Serif", Font.BOLD, 32));
         titleLabel.setForeground(new Color(139, 69, 19));
         titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        headerPanel.add(titleLabel, BorderLayout.CENTER);
         
-        // Details Panel - FIXED VERSION
-        JPanel detailsPanel = new JPanel(new GridBagLayout());
-        detailsPanel.setOpaque(false);
-        detailsPanel.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(new Color(180, 150, 120)),
-            "Calculation Details",
-            TitledBorder.CENTER,
-            TitledBorder.TOP,
-            new Font("SansSerif", Font.BOLD, 14),
-            new Color(80, 50, 30)
-        ));
+        contentPanel.add(headerPanel, BorderLayout.NORTH);
         
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 15, 8, 15);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+        // ========================================
+        // INFO PANEL (Cashier, Date, Time)
+        // ========================================
+        JPanel infoPanel = new JPanel(new GridLayout(1, 3, 20, 0));
+        infoPanel.setOpaque(false);
+        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 20, 0));
         
-        // Cashier Name
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.gridwidth = 1;
-        JLabel cashierLabel = new JLabel("Cashier Name:");
-        cashierLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
-        detailsPanel.add(cashierLabel, gbc);
-        
-        gbc.gridx = 1;
-        JLabel cashierValue = new JLabel(cashierName);
-        cashierValue.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        cashierValue.setForeground(new Color(139, 69, 19));
-        detailsPanel.add(cashierValue, gbc);
-        
-        // Date & Time
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        JLabel dateLabel = new JLabel("Date:");
-        dateLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
-        detailsPanel.add(dateLabel, gbc);
-        
-        gbc.gridx = 1;
         SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
-        JLabel dateValue = new JLabel(dateFormat.format(new Date()));
-        dateValue.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        detailsPanel.add(dateValue, gbc);
-        
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        JLabel timeLabel = new JLabel("Time:");
-        timeLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
-        detailsPanel.add(timeLabel, gbc);
-        
-        gbc.gridx = 1;
         SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm a");
-        JLabel timeValue = new JLabel(timeFormat.format(new Date()));
-        timeValue.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        detailsPanel.add(timeValue, gbc);
+        Date now = new Date();
+        
+        JPanel cashierInfo = createInfoBox("👤 Cashier", cashierName);
+        JPanel dateInfo = createInfoBox("📅 Date", dateFormat.format(now));
+        JPanel timeInfo = createInfoBox("🕐 Time", timeFormat.format(now));
+        
+        infoPanel.add(cashierInfo);
+        infoPanel.add(dateInfo);
+        infoPanel.add(timeInfo);
+        
+        contentPanel.add(infoPanel, BorderLayout.CENTER);
+        
+        // ========================================
+        // CALCULATION PANEL
+        // ========================================
+        JPanel calcPanel = new JPanel();
+        calcPanel.setLayout(new BoxLayout(calcPanel, BoxLayout.Y_AXIS));
+        calcPanel.setBackground(Color.WHITE);
+        calcPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(180, 150, 120), 2),
+            BorderFactory.createEmptyBorder(30, 40, 30, 40)
+        ));
+        calcPanel.setPreferredSize(new Dimension(500, 320));
+        calcPanel.setMaximumSize(new Dimension(500, 320));
+        
+        // Total Amount (Before Discount)
+        JPanel totalPanel = createCalcRow("Total Amount (Before Discount):", 
+            String.format("RM %.2f", total), new Color(80, 50, 30));
+        calcPanel.add(totalPanel);
+        calcPanel.add(Box.createVerticalStrut(10));
         
         // Separator
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        gbc.gridwidth = 2;
-        detailsPanel.add(new JSeparator(), gbc);
+        JSeparator sep1 = new JSeparator();
+        sep1.setMaximumSize(new Dimension(450, 2));
+        calcPanel.add(sep1);
+        calcPanel.add(Box.createVerticalStrut(10));
         
         // Total Items
-        gbc.gridy = 4;
-        JLabel itemsLabel = new JLabel("Total Items:");
-        itemsLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
-        detailsPanel.add(itemsLabel, gbc);
-        
-        // Subtotal
-        gbc.gridy = 5;
-        JLabel subtotalLabel = new JLabel("Subtotal:");
-        subtotalLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
-        detailsPanel.add(subtotalLabel, gbc);
-        
-        gbc.gridx = 1;
-        JLabel subtotalValue = new JLabel(String.format("RM %.2f", total));
-        subtotalValue.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        detailsPanel.add(subtotalValue, gbc);
+        JPanel itemsPanel = createCalcRow("Total Items (Quantity):", 
+            String.valueOf(totalItems), new Color(80, 50, 30));
+        calcPanel.add(itemsPanel);
+        calcPanel.add(Box.createVerticalStrut(10));
         
         // Discount
-        gbc.gridx = 0;
-        gbc.gridy = 6;
-        JLabel discountLabel = new JLabel("Discount (10%):");
-        discountLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
-        discountLabel.setForeground(new Color(200, 50, 50));
-        detailsPanel.add(discountLabel, gbc);
+        Color discountColor = discount > 0 ? new Color(200, 50, 50) : new Color(150, 150, 150);
+        JPanel discountPanel = createCalcRow("Discount (10%):", 
+            String.format("-RM %.2f", discount), discountColor);
+        calcPanel.add(discountPanel);
+        calcPanel.add(Box.createVerticalStrut(10));
         
-        gbc.gridx = 1;
-        JLabel discountValue = new JLabel(String.format("-RM %.2f", discount));
-        discountValue.setFont(new Font("SansSerif", Font.BOLD, 14));
-        discountValue.setForeground(new Color(200, 50, 50));
-        detailsPanel.add(discountValue, gbc);
-        
-        // Discount rule info
-        gbc.gridx = 0;
-        gbc.gridy = 7;
-        gbc.gridwidth = 2;
-        if (totalItems > 5) {
-            JLabel discountInfo = new JLabel("✅ 10% discount applied (Items: " + totalItems + " > 5)");
-            discountInfo.setFont(new Font("SansSerif", Font.ITALIC, 12));
-            discountInfo.setForeground(new Color(0, 150, 0));
-            detailsPanel.add(discountInfo, gbc);
-        } else {
-            JLabel discountInfo = new JLabel("ℹ️ No discount (Need > 5 items)");
-            discountInfo.setFont(new Font("SansSerif", Font.ITALIC, 12));
-            discountInfo.setForeground(new Color(150, 150, 0));
-            detailsPanel.add(discountInfo, gbc);
-        }
+        // Separator
+        JSeparator sep2 = new JSeparator();
+        sep2.setMaximumSize(new Dimension(450, 2));
+        calcPanel.add(sep2);
+        calcPanel.add(Box.createVerticalStrut(15));
         
         // Final Total
-        gbc.gridy = 8;
+        JPanel finalPanel = new JPanel(new BorderLayout(15, 0));
+        finalPanel.setOpaque(false);
+        finalPanel.setMaximumSize(new Dimension(450, 50));
+        
         JLabel finalLabel = new JLabel("FINAL TOTAL:");
-        finalLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        finalLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
         finalLabel.setForeground(new Color(139, 69, 19));
-        detailsPanel.add(finalLabel, gbc);
         
-        gbc.gridx = 1;
         JLabel finalValue = new JLabel(String.format("RM %.2f", finalTotal));
-        finalValue.setFont(new Font("SansSerif", Font.BOLD, 20));
+        finalValue.setFont(new Font("SansSerif", Font.BOLD, 28));
         finalValue.setForeground(new Color(139, 69, 19));
-        detailsPanel.add(finalValue, gbc);
+        finalValue.setHorizontalAlignment(SwingConstants.RIGHT);
         
-        // Button Panel
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
-        buttonPanel.setOpaque(false);
+        finalPanel.add(finalLabel, BorderLayout.WEST);
+        finalPanel.add(finalValue, BorderLayout.EAST);
+        calcPanel.add(finalPanel);
+        calcPanel.add(Box.createVerticalStrut(15));
+        
+        // Discount rule info
+        JLabel ruleLabel;
+        if (totalItems > 5) {
+            ruleLabel = new JLabel("✅ 10% discount applied (Items: " + totalItems + " > 5)");
+            ruleLabel.setForeground(new Color(0, 150, 0));
+        } else {
+            ruleLabel = new JLabel("ℹ️ No discount applied (Need > 5 items)");
+            ruleLabel.setForeground(new Color(150, 150, 0));
+        }
+        ruleLabel.setFont(new Font("SansSerif", Font.ITALIC, 13));
+        ruleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        calcPanel.add(ruleLabel);
+        
+        // Center the calc panel
+        JPanel centerWrapper = new JPanel(new GridBagLayout());
+        centerWrapper.setOpaque(false);
+        centerWrapper.add(calcPanel);
+        
+        contentPanel.add(centerWrapper, BorderLayout.CENTER);
+        
+        // ========================================
+        // BOTTOM BUTTONS
+        // ========================================
+        JPanel bottomBtnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 30, 15));
+        bottomBtnPanel.setOpaque(false);
         
         JButton backBtn = new JButton("🔙 Back to Order");
-        backBtn.setFont(new Font("SansSerif", Font.BOLD, 12));
+        backBtn.setFont(new Font("SansSerif", Font.BOLD, 15));
         backBtn.setBackground(new Color(180, 150, 120));
         backBtn.setForeground(Color.WHITE);
         backBtn.setFocusPainted(false);
+        backBtn.setBorder(BorderFactory.createEmptyBorder(12, 35, 12, 35));
         backBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         backBtn.addActionListener(e -> {
+            // Kembali ke Order Form dengan order yang sama
             dispose();
-            new PawCafeOrder(cashierName).setVisible(true);
+            PawCafeOrder orderFrame = new PawCafeOrder(cashierName);
+            // Pass the existing order items to the new order frame
+            for (OrderItem item : orderItems) {
+                orderFrame.addExistingItem(item);
+            }
+            orderFrame.setVisible(true);
         });
         
         JButton receiptBtn = new JButton("📄 VIEW RECEIPT");
-        receiptBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        receiptBtn.setFont(new Font("SansSerif", Font.BOLD, 16));
         receiptBtn.setBackground(new Color(139, 69, 19));
         receiptBtn.setForeground(Color.WHITE);
         receiptBtn.setFocusPainted(false);
-        receiptBtn.setBorder(BorderFactory.createEmptyBorder(10, 30, 10, 30));
+        receiptBtn.setBorder(BorderFactory.createEmptyBorder(12, 50, 12, 50));
         receiptBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         receiptBtn.addActionListener(e -> {
-            dispose();
-            new PawCafeReceipt(cashierName, orderItems, total, discount, finalTotal, totalItems).setVisible(true);
+        dispose();
+        new PawCafeReceipt(cashierName, orderItems, total, discount, finalTotal, totalItems, paymentMethod).setVisible(true);
         });
         
-        buttonPanel.add(backBtn);
-        buttonPanel.add(receiptBtn);
+        bottomBtnPanel.add(backBtn);
+        bottomBtnPanel.add(receiptBtn);
         
-        mainPanel.add(titleLabel, BorderLayout.NORTH);
-        mainPanel.add(detailsPanel, BorderLayout.CENTER);
-        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+        contentPanel.add(bottomBtnPanel, BorderLayout.SOUTH);
         
+        mainPanel.add(contentPanel, BorderLayout.CENTER);
         add(mainPanel);
+    }
+    
+    private JPanel createInfoBox(String label, String value) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(new Color(255, 248, 240));
+        panel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(180, 150, 120), 1),
+            BorderFactory.createEmptyBorder(10, 15, 10, 15)
+        ));
+        
+        JLabel labelText = new JLabel(label);
+        labelText.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        labelText.setForeground(new Color(150, 130, 110));
+        labelText.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        JLabel valueText = new JLabel(value);
+        valueText.setFont(new Font("SansSerif", Font.BOLD, 16));
+        valueText.setForeground(new Color(80, 50, 30));
+        valueText.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        panel.add(labelText);
+        panel.add(Box.createVerticalStrut(3));
+        panel.add(valueText);
+        
+        return panel;
+    }
+    
+    private JPanel createCalcRow(String label, String value, Color valueColor) {
+        JPanel panel = new JPanel(new BorderLayout(10, 0));
+        panel.setOpaque(false);
+        panel.setMaximumSize(new Dimension(450, 35));
+        
+        JLabel labelText = new JLabel(label);
+        labelText.setFont(new Font("SansSerif", Font.BOLD, 16));
+        labelText.setForeground(new Color(80, 50, 30));
+        
+        JLabel valueText = new JLabel(value);
+        valueText.setFont(new Font("SansSerif", Font.BOLD, 18));
+        valueText.setForeground(valueColor);
+        valueText.setHorizontalAlignment(SwingConstants.RIGHT);
+        
+        panel.add(labelText, BorderLayout.WEST);
+        panel.add(valueText, BorderLayout.EAST);
+        
+        return panel;
+    }
+    
+    // Method to pass existing order items back to Order Form
+    public void addExistingItem(OrderItem item) {
+        // This method is called from PawCafeOrder to add existing items
+        // The implementation is in PawCafeOrder
     }
 }
