@@ -14,4 +14,9 @@ public class OrderItem {
     public int getQuantity() { return quantity; }
     public double getPrice() { return price; }
     public double getSubtotal() { return quantity * price; }
+    
+    // Setter methods for editing
+    public void setName(String name) { this.name = name; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+    public void setPrice(double price) { this.price = price; }
 }
