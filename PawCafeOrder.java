@@ -1,7 +1,6 @@
-// PawCafeOrder.java - Order Form Page with Navigation Bar
+// PawCafeOrder.java - Order Form Page with Edit Function
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.text.SimpleDateFormat;
@@ -20,6 +19,8 @@ public class PawCafeOrder extends JFrame {
     private JRadioButton cashRadio, cardRadio, ewalletRadio;
     private ButtonGroup paymentGroup;
     private ArrayList<OrderItem> orderItems = new ArrayList<>();
+    private String selectedPaymentMethod = "Cash";
+    private int editingRow = -1; // Track which row is being edited (-1 = add mode)
     
     // Food Menu
     private String[][] foodMenu = {
@@ -47,7 +48,7 @@ public class PawCafeOrder extends JFrame {
         this.cashierName = cashierName;
         setTitle("Paw Café - Order Form");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(950, 750);
+        setSize(1100, 850);
         setLocationRelativeTo(null);
         setResizable(false);
         
@@ -92,8 +93,14 @@ public class PawCafeOrder extends JFrame {
         homeBtn.setBorder(BorderFactory.createEmptyBorder(10, 25, 10, 25));
         homeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         homeBtn.addActionListener(e -> {
-            dispose();
-            new PawCafeHome(cashierName).setVisible(true);
+            int confirm = JOptionPane.showConfirmDialog(this,
+                "Your current order will be lost. Continue?",
+                "Confirm",
+                JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                dispose();
+                new PawCafeHome(cashierName).setVisible(true);
+            }
         });
         
         JButton logoutBtn = new JButton("🚪 Logout");
@@ -124,18 +131,15 @@ public class PawCafeOrder extends JFrame {
         // ========================================
         // CONTENT PANEL
         // ========================================
-        JPanel contentPanel = new JPanel(new BorderLayout(20, 20));
-        contentPanel.setBorder(new EmptyBorder(25, 30, 25, 30));
+        JPanel contentPanel = new JPanel(new BorderLayout(15, 15));
+        contentPanel.setBorder(new EmptyBorder(20, 30, 20, 30));
         contentPanel.setBackground(new Color(255, 248, 240));
         
         // ========================================
         // TOP SECTION - Cashier Info & Date
         // ========================================
-        JPanel topInfoPanel = new JPanel(new BorderLayout());
+        JPanel topInfoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 30, 5));
         topInfoPanel.setOpaque(false);
-        
-        JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 30, 5));
-        infoPanel.setOpaque(false);
         
         JLabel cashierLabel = new JLabel("Cashier Name : " + cashierName);
         cashierLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
@@ -146,10 +150,8 @@ public class PawCafeOrder extends JFrame {
         dateLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
         dateLabel.setForeground(new Color(80, 50, 30));
         
-        infoPanel.add(cashierLabel);
-        infoPanel.add(dateLabel);
-        topInfoPanel.add(infoPanel, BorderLayout.WEST);
-        
+        topInfoPanel.add(cashierLabel);
+        topInfoPanel.add(dateLabel);
         contentPanel.add(topInfoPanel, BorderLayout.NORTH);
         
         // ========================================
@@ -161,15 +163,16 @@ public class PawCafeOrder extends JFrame {
         c.insets = new Insets(5, 10, 5, 10);
         c.fill = GridBagConstraints.BOTH;
         
-        // LEFT - Add Item Panel
+        // LEFT - Add/Edit Item Panel
         JPanel addItemPanel = new JPanel();
         addItemPanel.setLayout(new BoxLayout(addItemPanel, BoxLayout.Y_AXIS));
         addItemPanel.setBackground(Color.WHITE);
         addItemPanel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(new Color(180, 150, 120), 2),
-            BorderFactory.createEmptyBorder(20, 20, 20, 20)
+            BorderFactory.createEmptyBorder(20, 25, 20, 25)
         ));
-        addItemPanel.setPreferredSize(new Dimension(300, 400));
+        addItemPanel.setPreferredSize(new Dimension(320, 550));
+        addItemPanel.setMaximumSize(new Dimension(320, 550));
         
         JLabel addTitle = new JLabel("📋 SELECT ITEM");
         addTitle.setFont(new Font("SansSerif", Font.BOLD, 18));
@@ -181,12 +184,14 @@ public class PawCafeOrder extends JFrame {
         // Category
         JPanel catPanel = new JPanel(new BorderLayout(10, 5));
         catPanel.setOpaque(false);
+        catPanel.setMaximumSize(new Dimension(280, 35));
         JLabel catLabel = new JLabel("Category :");
         catLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
         catPanel.add(catLabel, BorderLayout.WEST);
         
         categoryCombo = new JComboBox<>(new String[]{"Food", "Beverage"});
         categoryCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        categoryCombo.setPreferredSize(new Dimension(180, 30));
         categoryCombo.addActionListener(e -> updateItems());
         catPanel.add(categoryCombo, BorderLayout.CENTER);
         addItemPanel.add(catPanel);
@@ -195,12 +200,14 @@ public class PawCafeOrder extends JFrame {
         // Item
         JPanel itemPanel = new JPanel(new BorderLayout(10, 5));
         itemPanel.setOpaque(false);
+        itemPanel.setMaximumSize(new Dimension(280, 35));
         JLabel itemLabel = new JLabel("Item :");
         itemLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
         itemPanel.add(itemLabel, BorderLayout.WEST);
         
         itemComboBox = new JComboBox<>();
         itemComboBox.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        itemComboBox.setPreferredSize(new Dimension(180, 30));
         itemPanel.add(itemComboBox, BorderLayout.CENTER);
         addItemPanel.add(itemPanel);
         addItemPanel.add(Box.createVerticalStrut(10));
@@ -208,17 +215,23 @@ public class PawCafeOrder extends JFrame {
         // Quantity
         JPanel qtyPanel = new JPanel(new BorderLayout(10, 5));
         qtyPanel.setOpaque(false);
+        qtyPanel.setMaximumSize(new Dimension(280, 35));
         JLabel qtyLabel = new JLabel("Quantity :");
         qtyLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
         qtyPanel.add(qtyLabel, BorderLayout.WEST);
         
         quantitySpinner = new JSpinner(new SpinnerNumberModel(1, 1, 99, 1));
         quantitySpinner.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        quantitySpinner.setPreferredSize(new Dimension(80, 30));
         qtyPanel.add(quantitySpinner, BorderLayout.CENTER);
         addItemPanel.add(qtyPanel);
         addItemPanel.add(Box.createVerticalStrut(15));
         
-        // Add Button
+        // Add/Update Button
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        btnPanel.setOpaque(false);
+        btnPanel.setMaximumSize(new Dimension(280, 50));
+        
         JButton addBtn = new JButton("➕ ADD ITEM");
         addBtn.setFont(new Font("SansSerif", Font.BOLD, 16));
         addBtn.setBackground(new Color(139, 69, 19));
@@ -226,17 +239,41 @@ public class PawCafeOrder extends JFrame {
         addBtn.setFocusPainted(false);
         addBtn.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
         addBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        addBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        addBtn.addActionListener(e -> addItem());
-        addItemPanel.add(addBtn);
-        addItemPanel.add(Box.createVerticalStrut(20));
+        addBtn.addActionListener(e -> {
+            if (editingRow == -1) {
+                addItem();
+            } else {
+                updateItem();
+            }
+        });
         
-        // Payment Method
+        JButton cancelEditBtn = new JButton("✖ Cancel");
+        cancelEditBtn.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        cancelEditBtn.setBackground(new Color(180, 150, 120));
+        cancelEditBtn.setForeground(Color.WHITE);
+        cancelEditBtn.setFocusPainted(false);
+        cancelEditBtn.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
+        cancelEditBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        cancelEditBtn.setVisible(false);
+        cancelEditBtn.addActionListener(e -> cancelEdit());
+        
+        btnPanel.add(addBtn);
+        btnPanel.add(cancelEditBtn);
+        addItemPanel.add(btnPanel);
+        
+        // Store references for later
+        addBtn.setName("addBtn");
+        cancelEditBtn.setName("cancelEditBtn");
+        
+        addItemPanel.add(Box.createVerticalStrut(15));
+        
+        // Separator
         JSeparator sep = new JSeparator();
-        sep.setMaximumSize(new Dimension(250, 2));
+        sep.setMaximumSize(new Dimension(280, 2));
         addItemPanel.add(sep);
         addItemPanel.add(Box.createVerticalStrut(15));
         
+        // Payment Method
         JLabel paymentLabel = new JLabel("💳 Payment Method :");
         paymentLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
         paymentLabel.setForeground(new Color(80, 50, 30));
@@ -246,15 +283,16 @@ public class PawCafeOrder extends JFrame {
         
         JPanel paymentPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
         paymentPanel.setOpaque(false);
+        paymentPanel.setMaximumSize(new Dimension(280, 35));
         
         paymentGroup = new ButtonGroup();
         cashRadio = new JRadioButton("Cash", true);
         cardRadio = new JRadioButton("Card");
         ewalletRadio = new JRadioButton("E-Wallet");
         
-        cashRadio.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        cardRadio.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        ewalletRadio.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        cashRadio.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        cardRadio.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        ewalletRadio.setFont(new Font("SansSerif", Font.PLAIN, 14));
         
         paymentGroup.add(cashRadio);
         paymentGroup.add(cardRadio);
@@ -265,13 +303,16 @@ public class PawCafeOrder extends JFrame {
         paymentPanel.add(ewalletRadio);
         addItemPanel.add(paymentPanel);
         
-        // RIGHT - Order List
-        JPanel orderListPanel = new JPanel(new BorderLayout());
+        addItemPanel.add(Box.createVerticalGlue());
+        
+        // RIGHT - Order List Panel
+        JPanel orderListPanel = new JPanel(new BorderLayout(10, 10));
         orderListPanel.setBackground(Color.WHITE);
         orderListPanel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(new Color(180, 150, 120), 2),
             BorderFactory.createEmptyBorder(15, 15, 15, 15)
         ));
+        orderListPanel.setPreferredSize(new Dimension(600, 500));
         
         JLabel orderTitle = new JLabel("📋 ORDER LIST");
         orderTitle.setFont(new Font("SansSerif", Font.BOLD, 18));
@@ -297,15 +338,31 @@ public class PawCafeOrder extends JFrame {
         orderTable.setSelectionForeground(new Color(80, 50, 30));
         
         JScrollPane scrollPane = new JScrollPane(orderTable);
-        scrollPane.setPreferredSize(new Dimension(500, 300));
+        scrollPane.setPreferredSize(new Dimension(550, 280));
+        scrollPane.setMinimumSize(new Dimension(400, 200));
         orderListPanel.add(scrollPane, BorderLayout.CENTER);
         
-        // Bottom of order list - Remove button & totals
-        JPanel bottomOrderPanel = new JPanel(new BorderLayout());
+        // Bottom of order list - Remove, Edit buttons & totals
+        JPanel bottomOrderPanel = new JPanel(new BorderLayout(10, 5));
         bottomOrderPanel.setOpaque(false);
+        bottomOrderPanel.setPreferredSize(new Dimension(550, 120));
         
-        JPanel removePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        removePanel.setOpaque(false);
+        // Button Panel
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
+        buttonPanel.setOpaque(false);
+        
+        JPanel actionBtnPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        actionBtnPanel.setOpaque(false);
+        
+        JButton editBtn = new JButton("✏️ EDIT SELECTED");
+        editBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        editBtn.setBackground(new Color(52, 152, 219));
+        editBtn.setForeground(Color.WHITE);
+        editBtn.setFocusPainted(false);
+        editBtn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        editBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        editBtn.addActionListener(e -> editSelectedItem());
         
         JButton removeBtn = new JButton("🗑️ REMOVE SELECTED");
         removeBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
@@ -315,27 +372,37 @@ public class PawCafeOrder extends JFrame {
         removeBtn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
         removeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         removeBtn.addActionListener(e -> removeSelectedItem());
-        removePanel.add(removeBtn);
         
-        JLabel hintLabel = new JLabel("Select item in the order list, then click REMOVE SELECTED");
+        actionBtnPanel.add(editBtn);
+        actionBtnPanel.add(removeBtn);
+        buttonPanel.add(actionBtnPanel);
+        
+        JLabel hintLabel = new JLabel("Select item in the order list, then click EDIT or REMOVE");
         hintLabel.setFont(new Font("SansSerif", Font.ITALIC, 11));
         hintLabel.setForeground(new Color(150, 150, 150));
-        removePanel.add(hintLabel);
+        hintLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        buttonPanel.add(hintLabel);
         
-        bottomOrderPanel.add(removePanel, BorderLayout.WEST);
+        bottomOrderPanel.add(buttonPanel, BorderLayout.WEST);
         
-        JPanel totalPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 5));
+        // Total Panel
+        JPanel totalPanel = new JPanel();
+        totalPanel.setLayout(new BoxLayout(totalPanel, BoxLayout.Y_AXIS));
         totalPanel.setOpaque(false);
+        totalPanel.setAlignmentX(Component.RIGHT_ALIGNMENT);
         
-        totalItemsLabel = new JLabel("Total Items: 0");
-        totalItemsLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        totalItemsLabel = new JLabel("Total Items : 0");
+        totalItemsLabel.setFont(new Font("SansSerif", Font.BOLD, 15));
         totalItemsLabel.setForeground(new Color(80, 50, 30));
+        totalItemsLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
         
-        totalPriceLabel = new JLabel("Total Price: RM 0.00");
-        totalPriceLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        totalPriceLabel = new JLabel("Total Price : RM 0.00");
+        totalPriceLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         totalPriceLabel.setForeground(new Color(139, 69, 19));
+        totalPriceLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
         
         totalPanel.add(totalItemsLabel);
+        totalPanel.add(Box.createVerticalStrut(5));
         totalPanel.add(totalPriceLabel);
         
         bottomOrderPanel.add(totalPanel, BorderLayout.EAST);
@@ -345,14 +412,16 @@ public class PawCafeOrder extends JFrame {
         // Add to center panel
         c.gridx = 0;
         c.gridy = 0;
-        c.weightx = 0.35;
+        c.weightx = 0.3;
         c.weighty = 1.0;
+        c.fill = GridBagConstraints.BOTH;
         centerPanel.add(addItemPanel, c);
         
         c.gridx = 1;
         c.gridy = 0;
-        c.weightx = 0.65;
+        c.weightx = 0.7;
         c.weighty = 1.0;
+        c.fill = GridBagConstraints.BOTH;
         centerPanel.add(orderListPanel, c);
         
         contentPanel.add(centerPanel, BorderLayout.CENTER);
@@ -364,35 +433,43 @@ public class PawCafeOrder extends JFrame {
         bottomBtnPanel.setOpaque(false);
         
         JButton backBtn = new JButton("🔙 Back to Home");
-        backBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        backBtn.setFont(new Font("SansSerif", Font.BOLD, 15));
         backBtn.setBackground(new Color(180, 150, 120));
         backBtn.setForeground(Color.WHITE);
         backBtn.setFocusPainted(false);
-        backBtn.setBorder(BorderFactory.createEmptyBorder(12, 30, 12, 30));
+        backBtn.setBorder(BorderFactory.createEmptyBorder(12, 35, 12, 35));
         backBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         backBtn.addActionListener(e -> {
-            dispose();
-            new PawCafeHome(cashierName).setVisible(true);
+            int confirm = JOptionPane.showConfirmDialog(this,
+                "Your current order will be lost. Continue?",
+                "Confirm",
+                JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                dispose();
+                new PawCafeHome(cashierName).setVisible(true);
+            }
         });
         
-        JButton calculateBtn = new JButton("🧮 CALCULATE");
-        calculateBtn.setFont(new Font("SansSerif", Font.BOLD, 16));
-        calculateBtn.setBackground(new Color(139, 69, 19));
-        calculateBtn.setForeground(Color.WHITE);
-        calculateBtn.setFocusPainted(false);
-        calculateBtn.setBorder(BorderFactory.createEmptyBorder(12, 40, 12, 40));
-        calculateBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        calculateBtn.addActionListener(e -> {
-            if (orderItems.isEmpty()) {
-                JOptionPane.showMessageDialog(this,
-                    "Please add at least one item!",
-                    "Empty Order", 
-                    JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            dispose();
-            new PawCafeCalculate(cashierName, orderItems).setVisible(true);
-        });
+            JButton calculateBtn = new JButton("🧮 CALCULATE");
+    calculateBtn.setFont(new Font("SansSerif", Font.BOLD, 16));
+    calculateBtn.setBackground(new Color(139, 69, 19));
+    calculateBtn.setForeground(Color.WHITE);
+    calculateBtn.setFocusPainted(false);
+    calculateBtn.setBorder(BorderFactory.createEmptyBorder(12, 50, 12, 50));
+    calculateBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    calculateBtn.addActionListener(e -> {
+        if (orderItems.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                "Please add at least one item!",
+                "Empty Order", 
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        String paymentMethod = getSelectedPaymentMethod();
+        dispose();
+        new PawCafeCalculate(cashierName, orderItems, paymentMethod).setVisible(true);
+    });
+        
         
         bottomBtnPanel.add(backBtn);
         bottomBtnPanel.add(calculateBtn);
@@ -446,6 +523,131 @@ public class PawCafeOrder extends JFrame {
             JOptionPane.INFORMATION_MESSAGE);
     }
     
+    private void editSelectedItem() {
+        int selectedRow = orderTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this,
+                "Please select an item to edit!",
+                "No Selection", 
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        // Get the item from orderItems list
+        OrderItem item = orderItems.get(selectedRow);
+        editingRow = selectedRow;
+        
+        // Find the item in menu to set category and combo box
+        String itemName = item.getName();
+        boolean found = false;
+        
+        // Check in food menu
+        for (int i = 0; i < foodMenu.length; i++) {
+            if (foodMenu[i][0].equals(itemName)) {
+                categoryCombo.setSelectedItem("Food");
+                updateItems();
+                itemComboBox.setSelectedIndex(i);
+                found = true;
+                break;
+            }
+        }
+        
+        // Check in beverage menu if not found
+        if (!found) {
+            for (int i = 0; i < beverageMenu.length; i++) {
+                if (beverageMenu[i][0].equals(itemName)) {
+                    categoryCombo.setSelectedItem("Beverage");
+                    updateItems();
+                    itemComboBox.setSelectedIndex(i);
+                    found = true;
+                    break;
+                }
+            }
+        }
+        
+        // Set quantity
+        quantitySpinner.setValue(item.getQuantity());
+        
+        // Change button text
+        Component[] components = ((JPanel) ((JPanel) getContentPane().getComponent(1)).getComponent(2)).getComponents();
+        for (Component comp : components) {
+            if (comp instanceof JPanel) {
+                for (Component btn : ((JPanel) comp).getComponents()) {
+                    if (btn instanceof JButton && ((JButton) btn).getName() != null && ((JButton) btn).getName().equals("addBtn")) {
+                        ((JButton) btn).setText("✏️ UPDATE ITEM");
+                        ((JButton) btn).setBackground(new Color(52, 152, 219));
+                    }
+                    if (btn instanceof JButton && ((JButton) btn).getName() != null && ((JButton) btn).getName().equals("cancelEditBtn")) {
+                        btn.setVisible(true);
+                    }
+                }
+            }
+        }
+        
+        // Highlight the selected row
+        orderTable.setSelectionBackground(new Color(255, 200, 100));
+    }
+    
+    private void updateItem() {
+        if (editingRow == -1) return;
+        
+        int selectedIndex = itemComboBox.getSelectedIndex();
+        String category = (String) categoryCombo.getSelectedItem();
+        String[][] menu = category.equals("Food") ? foodMenu : beverageMenu;
+        
+        String itemName = menu[selectedIndex][0];
+        double price = Double.parseDouble(menu[selectedIndex][1]);
+        int qty = (int) quantitySpinner.getValue();
+        
+        // Update the order item
+        OrderItem item = orderItems.get(editingRow);
+        item.setName(itemName);
+        item.setPrice(price);
+        item.setQuantity(qty);
+        
+        // Update table
+        double subtotal = qty * price;
+        tableModel.setValueAt(itemName, editingRow, 1);
+        tableModel.setValueAt(qty, editingRow, 2);
+        tableModel.setValueAt(String.format("%.2f", price), editingRow, 3);
+        tableModel.setValueAt(String.format("%.2f", subtotal), editingRow, 4);
+        
+        // Reset editing mode
+        cancelEdit();
+        
+        updateTotals();
+        JOptionPane.showMessageDialog(this,
+            "✅ " + itemName + " updated successfully!",
+            "Item Updated", 
+            JOptionPane.INFORMATION_MESSAGE);
+    }
+    
+    private void cancelEdit() {
+        editingRow = -1;
+        
+        // Reset button text
+        Component[] components = ((JPanel) ((JPanel) getContentPane().getComponent(1)).getComponent(2)).getComponents();
+        for (Component comp : components) {
+            if (comp instanceof JPanel) {
+                for (Component btn : ((JPanel) comp).getComponents()) {
+                    if (btn instanceof JButton && ((JButton) btn).getName() != null && ((JButton) btn).getName().equals("addBtn")) {
+                        ((JButton) btn).setText("➕ ADD ITEM");
+                        ((JButton) btn).setBackground(new Color(139, 69, 19));
+                    }
+                    if (btn instanceof JButton && ((JButton) btn).getName() != null && ((JButton) btn).getName().equals("cancelEditBtn")) {
+                        btn.setVisible(false);
+                    }
+                }
+            }
+        }
+        
+        // Reset selection color
+        orderTable.setSelectionBackground(new Color(255, 248, 240));
+        
+        // Clear selection
+        orderTable.clearSelection();
+    }
+    
     private void removeSelectedItem() {
         int selectedRow = orderTable.getSelectedRow();
         if (selectedRow == -1) {
@@ -454,6 +656,11 @@ public class PawCafeOrder extends JFrame {
                 "No Selection", 
                 JOptionPane.WARNING_MESSAGE);
             return;
+        }
+        
+        // If currently editing, cancel first
+        if (editingRow != -1) {
+            cancelEdit();
         }
         
         orderItems.remove(selectedRow);
@@ -478,7 +685,36 @@ public class PawCafeOrder extends JFrame {
             totalQty += item.getQuantity();
             totalPrice += item.getSubtotal();
         }
-        totalItemsLabel.setText("Total Items: " + totalQty);
-        totalPriceLabel.setText("Total Price: RM " + String.format("%.2f", totalPrice));
+        totalItemsLabel.setText("Total Items : " + totalQty);
+        totalPriceLabel.setText("Total Price : RM " + String.format("%.2f", totalPrice));
+    }
+    
+    // Add this method to get payment method
+    public String getSelectedPaymentMethod() {
+    if (cashRadio.isSelected()) 
+    return "Cash";
+    if (cardRadio.isSelected()) 
+    return "Card";
+    if (ewalletRadio.isSelected()) 
+    return "E-Wallet";
+    return "Cash";
+    }
+    
+    public void addExistingItem(OrderItem item) {
+        // Add to order items list
+        orderItems.add(item);
+        
+        // Update table
+        int row = tableModel.getRowCount() + 1;
+        double subtotal = item.getQuantity() * item.getPrice();
+        tableModel.addRow(new Object[]{
+            row,
+            item.getName(),
+            item.getQuantity(),
+            String.format("%.2f", item.getPrice()),
+            String.format("%.2f", subtotal)
+        });
+        
+        updateTotals();
     }
 }
